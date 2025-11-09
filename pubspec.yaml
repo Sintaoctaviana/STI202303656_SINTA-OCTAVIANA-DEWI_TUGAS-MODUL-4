@@ -1,0 +1,40 @@
+name: data_playground
+description: A Flutter app demonstrating data persistence (Prefs, File, SQLite, Floor, API)
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Data Storage
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.2
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  floor: ^1.4.2
+
+  # API
+  dio: ^5.3.4
+  retrofit: ^4.0.3
+  json_annotation: ^4.8.1
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Code generation - keep on build/source_gen/dart_style 2.x line compatible with floor 1.4.x
+  build_runner: ^2.4.6
+  retrofit_generator: ^8.0.4
+  json_serializable: ^6.7.1
+  floor_generator: ^1.4.2
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
