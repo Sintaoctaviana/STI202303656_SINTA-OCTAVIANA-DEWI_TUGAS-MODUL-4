@@ -15,38 +15,37 @@ class _TaskFloorPageState extends State<TaskFloorPage> {
   late final Future<AppDatabase> _dbFuture;
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
-  List<Task> _tasks = [];
+  Stream<List<Task>>? _taskStream;
+  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
     // Inisialisasi Future database menggunakan $FloorAppDatabase (yang akan digenerate)
     _dbFuture = $FloorAppDatabase.databaseBuilder('app_floor.db').build();
-    _load();
+    // create a stream by waiting for the DB then using the DAO stream
+    _taskStream = Stream.fromFuture(_dbFuture)
+        .asyncExpand((db) => db.taskDao.findAllStream());
   }
 
-  Future<void> _load() async {
-    final db = await _dbFuture;
-    final list = await db.taskDao.findAll();
-    if (mounted) {
-      setState(() => _tasks = list);
-    }
-  }
+
 
   Future<void> _add() async {
-    if (_titleCtrl.text.trim().isEmpty) return;
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty) return;
+    setState(() => _isProcessing = true);
     final db = await _dbFuture;
     await db.taskDao.insertTask(
-      Task(title: _titleCtrl.text, description: _descCtrl.text),
+      Task(title: title, description: _descCtrl.text),
     );
     _titleCtrl.clear();
     _descCtrl.clear();
-    await _load();
+    if (mounted) setState(() => _isProcessing = false);
   }
 
   Future<void> _toggle(Task t) async {
+    setState(() => _isProcessing = true);
     final db = await _dbFuture;
-    // Membuat objek Task baru untuk update dengan status isCompleted yang di-toggle
     await db.taskDao.updateTask(
       Task(
         id: t.id,
@@ -55,13 +54,14 @@ class _TaskFloorPageState extends State<TaskFloorPage> {
         isCompleted: !t.isCompleted,
       ),
     );
-    await _load();
+    if (mounted) setState(() => _isProcessing = false);
   }
 
   Future<void> _delete(Task t) async {
+    setState(() => _isProcessing = true);
     final db = await _dbFuture;
     await db.taskDao.deleteTask(t);
-    await _load();
+    if (mounted) setState(() => _isProcessing = false);
   }
 
   @override
@@ -90,34 +90,46 @@ class _TaskFloorPageState extends State<TaskFloorPage> {
                   decoration: const InputDecoration(labelText: 'Deskripsi'),
                 ),
                 const SizedBox(height: 8),
-                ElevatedButton(onPressed: _add, child: const Text('Tambah')),
+                ElevatedButton(onPressed: _isProcessing ? null : _add, child: const Text('Tambah')),
               ],
             ),
           ),
           const Divider(),
           Expanded(
-            child: ListView.builder(
-              itemCount: _tasks.length,
-              itemBuilder: (_, i) {
-                final t = _tasks[i];
-                return ListTile(
-                  title: Text(t.title),
-                  subtitle: Text(t.description ?? ''),
-                  leading: IconButton(
-                    icon: Icon(
-                      t.isCompleted
-                          ? Icons.check_box
-                          : Icons.check_box_outline_blank,
-                    ),
-                    onPressed: () => _toggle(t),
+            child: _taskStream == null
+                ? const Center(child: CircularProgressIndicator())
+                : StreamBuilder<List<Task>>(
+                    stream: _taskStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final list = snapshot.data ?? <Task>[];
+                      if (list.isEmpty) {
+                        return const Center(child: Text('Tidak ada task'));
+                      }
+                      return ListView.builder(
+                        itemCount: list.length,
+                        itemBuilder: (_, i) {
+                          final t = list[i];
+                          return ListTile(
+                            title: Text(t.title),
+                            subtitle: Text(t.description ?? ''),
+                            leading: IconButton(
+                              icon: Icon(
+                                t.isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
+                              ),
+                              onPressed: _isProcessing ? null : () => _toggle(t),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: _isProcessing ? null : () => _delete(t),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () => _delete(t),
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),

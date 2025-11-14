@@ -10,8 +10,18 @@ part 'task_api_service.g.dart';
 // untuk mencegah error koneksi ke 'example.com'.
 @RestApi(baseUrl: 'https://jsonplaceholder.typicode.com')
 abstract class TaskApiService {
-  // Factory constructor yang diperlukan oleh Retrofit
-  factory TaskApiService(Dio dio, {String baseUrl}) = _TaskApiService;
+  // Optional interface to allow generated code to accept an error logger.
+  // You can implement this to log parse errors coming from responses.
+  // Keep it simple so generated code can reference it.
+  // NOTE: This must be defined before the factory so the type is visible.
+  // The generated implementation will accept this as an optional named param.
+  // Example implementation can be provided elsewhere if desired.
+  //
+  // interface-like class:
+  // class ParseErrorLogger { void logError(Object e, StackTrace s, RequestOptions o) {} }
+
+  /// Factory constructor that matches the generated implementation.
+  factory TaskApiService(Dio dio, {String? baseUrl, ParseErrorLogger? errorLogger}) = _TaskApiService;
 
   // Operasi CRUD dasar menggunakan resource 'todos'
 

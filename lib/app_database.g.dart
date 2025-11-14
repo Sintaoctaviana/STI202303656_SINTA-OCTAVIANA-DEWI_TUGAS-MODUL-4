@@ -158,6 +158,18 @@ class _$TaskDao extends TaskDao {
   final DeletionAdapter<Task> _taskDeletionAdapter;
 
   @override
+  Stream<List<Task>> findAllStream() {
+  return _queryAdapter.queryListStream('SELECT * FROM Task ORDER BY id DESC',
+    queryableName: 'Task',
+    isView: false,
+    mapper: (Map<String, Object?> row) => Task(
+            id: row['id'] as int?,
+            title: row['title'] as String,
+            description: row['description'] as String?,
+            isCompleted: (row['isCompleted'] as int) != 0));
+  }
+
+  @override
   Future<List<Task>> findAll() async {
     return _queryAdapter.queryList('SELECT * FROM Task ORDER BY id DESC',
         mapper: (Map<String, Object?> row) => Task(

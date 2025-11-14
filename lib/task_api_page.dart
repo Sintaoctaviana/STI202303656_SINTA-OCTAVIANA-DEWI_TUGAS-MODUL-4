@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'task_api_model.dart';
-import 'task_api_service.dart';
+import 'task_api_client.dart';
 
-// Analisis: Gunakan instance Dio dan ApiService sebagai variabel global/singleton
-// agar mudah diakses.
-final Dio _dio = Dio();
-final TaskApiService _apiService = TaskApiService(_dio);
+// Use the TaskApiClient wrapper so we have centralized logging & retry behavior.
+final TaskApiClient _apiClient = TaskApiClient();
 
 class TaskApiPage extends StatefulWidget {
   const TaskApiPage({super.key});
@@ -35,7 +33,7 @@ class _TaskApiPageState extends State<TaskApiPage> {
     });
     try {
       // Hanya mengambil 5 tugas pertama untuk demo
-      final allTasks = await _apiService.getTasks();
+      final allTasks = await _apiClient.getTasks();
       if (mounted) {
         // Mengambil 5 task dan membalikkannya agar yang terbaru di atas
         setState(() {
@@ -44,7 +42,12 @@ class _TaskApiPageState extends State<TaskApiPage> {
         });
       }
     } catch (e) {
-      _showErrorSnackBar('Gagal memuat tugas: $e');
+      // Log full error for debugging and show friendly message to user
+      debugPrint('Error loading tasks: $e');
+      if (e is DioException) {
+        debugPrint('DioException details: status=${e.response?.statusCode}, body=${e.response?.data}');
+      }
+      _showErrorSnackBar(friendlyApiError(e));
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -63,7 +66,7 @@ class _TaskApiPageState extends State<TaskApiPage> {
 
     try {
       // Mengirim POST request
-      final createdTask = await _apiService.createTask(newTask);
+      final createdTask = await _apiClient.createTask(newTask);
 
       // Setelah berhasil, tambahkan ke daftar lokal dan muat ulang UI
       if (mounted) {
@@ -75,7 +78,9 @@ class _TaskApiPageState extends State<TaskApiPage> {
       }
       _showSuccessSnackBar('Tugas berhasil dibuat! ID: ${createdTask.id}');
     } catch (e) {
-      _showErrorSnackBar('Gagal menambah tugas: $e');
+      debugPrint('Error creating task: $e');
+      if (e is DioException) debugPrint('status=${e.response?.statusCode}, body=${e.response?.data}');
+      _showErrorSnackBar(friendlyApiError(e));
     }
   }
 
@@ -91,7 +96,7 @@ class _TaskApiPageState extends State<TaskApiPage> {
 
     try {
       // Mengirim PUT request ke API
-      await _apiService.updateTask(task.id!, updatedTask);
+      await _apiClient.updateTask(task.id!, updatedTask);
 
       // Jika berhasil di API, update state lokal
       if (mounted) {
@@ -104,7 +109,9 @@ class _TaskApiPageState extends State<TaskApiPage> {
       }
       _showSuccessSnackBar('Tugas ID ${task.id} diupdate!');
     } catch (e) {
-      _showErrorSnackBar('Gagal update tugas: $e');
+      debugPrint('Error updating task: $e');
+      if (e is DioException) debugPrint('status=${e.response?.statusCode}, body=${e.response?.data}');
+      _showErrorSnackBar(friendlyApiError(e));
     }
   }
 
@@ -112,7 +119,7 @@ class _TaskApiPageState extends State<TaskApiPage> {
   Future<void> _delete(TaskDto task) async {
     try {
       // Mengirim DELETE request
-      await _apiService.deleteTask(task.id!);
+      await _apiClient.deleteTask(task.id!);
 
       // Jika berhasil di API, hapus dari daftar lokal
       if (mounted) {
@@ -124,7 +131,9 @@ class _TaskApiPageState extends State<TaskApiPage> {
     } catch (e) {
       // Catatan: JSONPlaceholder seringkali mengembalikan status 404/500 setelah DELETE,
       // tetapi kita tetap menghapusnya secara lokal untuk demonstrasi.
-      _showErrorSnackBar('Gagal hapus tugas: $e');
+      debugPrint('Error deleting task: $e');
+      if (e is DioException) debugPrint('status=${e.response?.statusCode}, body=${e.response?.data}');
+      _showErrorSnackBar(friendlyApiError(e));
     }
   }
 
@@ -136,6 +145,25 @@ class _TaskApiPageState extends State<TaskApiPage> {
         SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
     }
+  }
+
+  // Map various exceptions to short, user-friendly messages. Keep the
+  // detailed info in logs for debugging.
+  String friendlyApiError(Object e) {
+    if (e is DioException) {
+      final status = e.response?.statusCode;
+      if (status == 403) return 'Akses ditolak (403). Periksa izin atau token.';
+      if (status == 401) return 'Belum terautentikasi (401). Silakan masuk.';
+      if (status == 404) return 'Data tidak ditemukan (404).';
+      if (status != null && status >= 500) return 'Kesalahan server. Coba lagi nanti.';
+      // network/no response
+      if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+        return 'Waktu koneksi habis. Periksa koneksi Anda.';
+      }
+      return 'Gagal berkomunikasi dengan server (status: ${status ?? 'tidak diketahui'}).';
+    }
+    // Fallback for other errors
+    return 'Terjadi kesalahan. Silakan coba lagi.';
   }
 
   void _showSuccessSnackBar(String message) {

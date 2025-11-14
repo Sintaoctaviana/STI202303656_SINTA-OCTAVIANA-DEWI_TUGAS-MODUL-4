@@ -9,6 +9,10 @@ abstract class TaskDao {
   @Query('SELECT * FROM Task ORDER BY id DESC')
   Future<List<Task>> findAll();
 
+  // Stream version: emits a new list whenever the table changes so UI can auto-refresh
+  @Query('SELECT * FROM Task ORDER BY id DESC')
+  Stream<List<Task>> findAllStream();
+
   @insert
   Future<int> insertTask(Task task);
 

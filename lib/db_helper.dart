@@ -55,4 +55,35 @@ class DbHelper {
     final db = await _open();
     return db.delete(table, where: 'id = ?', whereArgs: [id]);
   }
+
+  // New: query with search + paging. Returns map { 'items': List<...>, 'total': int }
+  static Future<Map<String, dynamic>> queryTasks({
+    String? query,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final db = await _open();
+    final whereClauses = <String>[];
+    final whereArgs = <dynamic>[];
+
+    if (query != null && query.trim().isNotEmpty) {
+      final q = '%${query.trim()}%';
+      whereClauses.add('(title LIKE ? OR description LIKE ?)');
+      whereArgs.addAll([q, q]);
+    }
+
+    final whereSql = whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
+
+    // total count
+    final countResult = await db.rawQuery('SELECT COUNT(*) as cnt FROM $table $whereSql', whereArgs);
+    final total = Sqflite.firstIntValue(countResult) ?? 0;
+
+    // paged items
+    final items = await db.rawQuery(
+      'SELECT * FROM $table $whereSql ORDER BY id DESC LIMIT ? OFFSET ?',
+      [...whereArgs, limit, offset],
+    );
+
+    return {'items': items, 'total': total};
+  }
 }
