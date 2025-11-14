@@ -114,7 +114,7 @@ class _$TaskDao extends TaskDao {
   _$TaskDao(
     this.database,
     this.changeListener,
-  )   : _queryAdapter = QueryAdapter(database),
+  )   : _queryAdapter = QueryAdapter(database, changeListener),
         _taskInsertionAdapter = InsertionAdapter(
             database,
             'Task',
@@ -123,7 +123,8 @@ class _$TaskDao extends TaskDao {
                   'title': item.title,
                   'description': item.description,
                   'isCompleted': item.isCompleted ? 1 : 0
-                }),
+                },
+            changeListener),
         _taskUpdateAdapter = UpdateAdapter(
             database,
             'Task',
@@ -133,7 +134,8 @@ class _$TaskDao extends TaskDao {
                   'title': item.title,
                   'description': item.description,
                   'isCompleted': item.isCompleted ? 1 : 0
-                }),
+                },
+            changeListener),
         _taskDeletionAdapter = DeletionAdapter(
             database,
             'Task',
@@ -143,7 +145,8 @@ class _$TaskDao extends TaskDao {
                   'title': item.title,
                   'description': item.description,
                   'isCompleted': item.isCompleted ? 1 : 0
-                });
+                },
+            changeListener);
 
   final sqflite.DatabaseExecutor database;
 
@@ -158,18 +161,6 @@ class _$TaskDao extends TaskDao {
   final DeletionAdapter<Task> _taskDeletionAdapter;
 
   @override
-  Stream<List<Task>> findAllStream() {
-  return _queryAdapter.queryListStream('SELECT * FROM Task ORDER BY id DESC',
-    queryableName: 'Task',
-    isView: false,
-    mapper: (Map<String, Object?> row) => Task(
-            id: row['id'] as int?,
-            title: row['title'] as String,
-            description: row['description'] as String?,
-            isCompleted: (row['isCompleted'] as int) != 0));
-  }
-
-  @override
   Future<List<Task>> findAll() async {
     return _queryAdapter.queryList('SELECT * FROM Task ORDER BY id DESC',
         mapper: (Map<String, Object?> row) => Task(
@@ -177,6 +168,18 @@ class _$TaskDao extends TaskDao {
             title: row['title'] as String,
             description: row['description'] as String?,
             isCompleted: (row['isCompleted'] as int) != 0));
+  }
+
+  @override
+  Stream<List<Task>> findAllStream() {
+    return _queryAdapter.queryListStream('SELECT * FROM Task ORDER BY id DESC',
+        mapper: (Map<String, Object?> row) => Task(
+            id: row['id'] as int?,
+            title: row['title'] as String,
+            description: row['description'] as String?,
+            isCompleted: (row['isCompleted'] as int) != 0),
+        queryableName: 'Task',
+        isView: false);
   }
 
   @override

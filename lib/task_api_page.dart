@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'task_api_model.dart';
-import 'task_api_client.dart';
+import 'task_api_service.dart';
 
-// Use the TaskApiClient wrapper so we have centralized logging & retry behavior.
-final TaskApiClient _apiClient = TaskApiClient();
+// Use the generated TaskApiService directly.
+final Dio _dio = Dio();
+final TaskApiService _apiService = TaskApiService(_dio, errorLogger: null);
 
 class TaskApiPage extends StatefulWidget {
   const TaskApiPage({super.key});
@@ -33,7 +34,7 @@ class _TaskApiPageState extends State<TaskApiPage> {
     });
     try {
       // Hanya mengambil 5 tugas pertama untuk demo
-      final allTasks = await _apiClient.getTasks();
+  final allTasks = await _apiService.getTasks();
       if (mounted) {
         // Mengambil 5 task dan membalikkannya agar yang terbaru di atas
         setState(() {
@@ -66,7 +67,7 @@ class _TaskApiPageState extends State<TaskApiPage> {
 
     try {
       // Mengirim POST request
-      final createdTask = await _apiClient.createTask(newTask);
+  final createdTask = await _apiService.createTask(newTask);
 
       // Setelah berhasil, tambahkan ke daftar lokal dan muat ulang UI
       if (mounted) {
@@ -96,7 +97,7 @@ class _TaskApiPageState extends State<TaskApiPage> {
 
     try {
       // Mengirim PUT request ke API
-      await _apiClient.updateTask(task.id!, updatedTask);
+  await _apiService.updateTask(task.id!, updatedTask);
 
       // Jika berhasil di API, update state lokal
       if (mounted) {
@@ -119,7 +120,7 @@ class _TaskApiPageState extends State<TaskApiPage> {
   Future<void> _delete(TaskDto task) async {
     try {
       // Mengirim DELETE request
-      await _apiClient.deleteTask(task.id!);
+  await _apiService.deleteTask(task.id!);
 
       // Jika berhasil di API, hapus dari daftar lokal
       if (mounted) {
